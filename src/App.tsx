@@ -47,7 +47,7 @@ function App() {
 
   return (
     <main className="container">
-      <h1>File Drop</h1>
+      <h1>File Drop (mis à jour !)</h1>
       <p>Version {version}</p>
       <p>{message}</p>
       {update ? (
