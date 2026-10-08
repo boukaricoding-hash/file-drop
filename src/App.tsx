@@ -1,49 +1,64 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
+import { check, Update } from "@tauri-apps/plugin-updater";
 import "./App.css";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [version, setVersion] = useState("");
+  const [message, setMessage] = useState("");
+  const [update, setUpdate] = useState<Update | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  async function checkForUpdate() {
+    setBusy(true);
+    setMessage("Recherche de mise à jour...");
+    try {
+      const found = await check();
+      if (found) {
+        setUpdate(found);
+        setMessage(`Nouvelle version disponible : ${found.version}`);
+      } else {
+        setUpdate(null);
+        setMessage("Vous avez la dernière version.");
+      }
+    } catch (e) {
+      setMessage("Impossible de vérifier les mises à jour : " + String(e));
+    }
+    setBusy(false);
   }
+
+  async function installUpdate() {
+    if (!update) return;
+    setBusy(true);
+    setMessage("Téléchargement et installation...");
+    try {
+      await update.downloadAndInstall();
+      setMessage("Mise à jour installée. L'application va se fermer.");
+    } catch (e) {
+      setMessage("Échec de la mise à jour : " + String(e));
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    getVersion().then(setVersion);
+    checkForUpdate();
+  }, []);
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+      <h1>File Drop</h1>
+      <p>Version {version}</p>
+      <p>{message}</p>
+      {update ? (
+        <button onClick={installUpdate} disabled={busy}>
+          Installer la mise à jour
+        </button>
+      ) : (
+        <button onClick={checkForUpdate} disabled={busy}>
+          Vérifier les mises à jour
+        </button>
+      )}
     </main>
   );
 }
